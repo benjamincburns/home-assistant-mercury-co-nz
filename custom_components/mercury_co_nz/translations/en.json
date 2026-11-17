@@ -1,0 +1,68 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mercury.co.nz",
+        "description": "Enter your Mercury.co.nz account credentials",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Mercury",
+        "description": "Update your Mercury account email or password. After saving, the integration will reload and sensors will refresh.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "already_configured_update": {
+        "title": "Account already set up",
+        "description": "This Mercury account ({email}) is already in Home Assistant but may not have loaded (no sensors). Submit below to remove the old entry and add a fresh one so the integration and sensors are created.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Mercury.co.nz. Please check your credentials and try again."
+    },
+    "abort": {
+      "already_configured": "This Mercury account is already set up. If you don't see sensors (e.g. sensor.mercury_nz_energy_usage), go to Settings \u2192 Devices & services, search 'Mercury', open the Mercury NZ integration, and click **Reload** (or restart Home Assistant). Use Developer Tools \u2192 States and search 'mercury' to see entity IDs.",
+      "reconfigure_successful": "Configuration updated. The Mercury integration may only appear under HACS in Devices & services (Settings \u2192 Devices & services \u2192 click HACS \u2192 find Mercury NZ). Your sensors should now be available: go to Developer Tools \u2192 States, search 'mercury', and use sensor.mercury_nz_energy_usage in your dashboard cards.",
+      "reconfigure_reload_failed": "Configuration was updated but reload failed. Restart Home Assistant (Settings \u2192 System \u2192 Restart) so the Mercury integration and sensors load.",
+      "reconfigure_failed": "Could not find the integration entry to reconfigure."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Mercury ICP selection",
+        "description": "Pin a single ICP (meter) for this Home Assistant instance. When set, sensors, monthly/weekly summaries, and usage charts show only that ICP. Choose \"All ICPs\" to keep the default multi-ICP behaviour. Note: the account bill and amount due stay account-wide \u2014 Mercury issues one bill per account, so it cannot be split per ICP.",
+        "data": {
+          "icp": "ICP for this instance",
+          "tariff_meter": "Configure day/night schedule for meter"
+        }
+      },
+      "tariff": {
+        "title": "Day/night schedule",
+        "description": "Enter the hours confirmed by your electricity provider for meter {meter}. The suggested hours are not confirmation of your tariff. Enable only after checking the times and daylight-saving rules. Calculations apply the same schedule every day from the start date (YYYY-MM-DD), using only recorded hourly usage. They are not a billed tariff breakdown. Half-hour Flex periods and weekend-specific schedules are not supported. Changing the schedule creates new statistics; old statistics remain available.",
+        "data": {
+          "enabled": "Enable calculated day/night usage",
+          "night_start": "Night rate starts",
+          "night_end": "Night rate ends",
+          "start_date": "Apply schedule from date (YYYY-MM-DD)",
+          "time_zone": "Time basis"
+        }
+      }
+    },
+    "abort": {
+      "icps_not_discovered": "ICPs have not been discovered yet. Wait for the integration to poll once (about one coordinator cycle after setup), then reopen Configure."
+    },
+    "error": {
+      "invalid_tariff_schedule": "Enter a valid date and different whole-hour start/end times."
+    }
+  }
+}
