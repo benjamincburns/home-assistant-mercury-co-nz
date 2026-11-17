@@ -21,6 +21,8 @@ from .const import (
     ICP_SCOPED_SENSOR_TYPES,
     STATISTICS_HOURLY_RETENTION_DAYS,
 )
+from .tariff import CONF_TARIFF_SCHEDULES
+from .tariff_history import TariffHistory
 from .mercury_api import MercuryAPI
 from .statistics import MercuryStatisticsImporter, _sanitize_for_key
 
@@ -66,6 +68,8 @@ class MercuryDataUpdateCoordinator(DataUpdateCoordinator):
         # __init__.py's update listener compares against it so that entry.data
         # writes (the _primary_service_id persist) don't trigger a reload.
         self.applied_icp_option: str | None = config_entry.options.get(CONF_ICP)
+        self.applied_tariff_options = dict(config_entry.options.get(CONF_TARIFF_SCHEDULES, {}))
+        self._tariff_histories = {}
 
         super().__init__(
             hass,
@@ -262,6 +266,17 @@ class MercuryDataUpdateCoordinator(DataUpdateCoordinator):
                     last_datetime = extended_hourly_data['extended_hourly_usage_history'][-1].get('datetime', 'Unknown')
                     _LOGGER.info("🕐 Hourly data range: %s to %s", first_datetime, last_datetime)
 
+            for service in self._discovered_electricity_services:
+                sid = service.service_id
+                source = self._build_importer_data_slice(combined_data, "electricity", sid, sid == self._primary_service_id)
+                records = list(source.get("extended_hourly_usage_history") or [])
+                # Prefer fresh records over cache copies; they retain read-quality fields.
+                records.extend(source.get("hourly_usage_history") or [])
+                try:
+                    await self.async_import_tariff_history(sid, records, combined_data)
+                except Exception:
+                    _LOGGER.exception("Day/night history update failed for service %s", sid)
+
             # Energy Dashboard integration — import historical statistics.
             # This block is INSIDE the existing outer try/except that wraps the whole
             # _async_update_data body (above) and converts unhandled exceptions to
@@ -407,6 +422,18 @@ class MercuryDataUpdateCoordinator(DataUpdateCoordinator):
                 "Mercury CO NZ: ICP discovery failed (will retry next cycle): %s",
                 exc,
             )
+
+    async def async_import_tariff_history(self, service_id, records, combined_data):
+        """Ingest real hours, including optional imports from a local archive."""
+        if service_id not in self._tariff_histories:
+            self._tariff_histories[service_id] = TariffHistory(self.hass, self._config_entry.entry_id, service_id)
+        values = await self._tariff_histories[service_id].async_update(
+            records, self._config_entry.options.get(CONF_TARIFF_SCHEDULES, {}).get(service_id))
+        token = _sanitize_for_key(service_id)
+        for key, value in values.items():
+            combined_data[f"icp_{token}_{key}"] = value
+            if service_id == self._primary_service_id:
+                combined_data[key] = value
 
     def _build_importer_data_slice(
         self,

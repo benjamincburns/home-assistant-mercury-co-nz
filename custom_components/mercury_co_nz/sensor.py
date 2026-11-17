@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
@@ -11,6 +11,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -21,7 +23,9 @@ from .const import (
     CONF_EMAIL,
     CHART_ATTRIBUTE_DAILY_DAYS,
     CHART_ATTRIBUTE_HOURLY_HOURS,
+    TARIFF_SENSOR_TYPES,
 )
+from .tariff import CONF_TARIFF_SCHEDULES, Schedule
 from .coordinator import MercuryDataUpdateCoordinator
 from .statistics import _sanitize_for_key
 
@@ -182,6 +186,27 @@ class MercurySensor(CoordinatorEntity, SensorEntity):
         self._attr_device_class = sensor_config.get("device_class")
         self._attr_state_class = sensor_config.get("state_class")
 
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        if self._sensor_type in ("plan_anytime_rate", "tariff_period"):
+            # Switch locally at the boundary without waiting for a cloud poll.
+            self.async_on_remove(async_track_time_interval(
+                self.hass, self._async_tariff_tick, timedelta(minutes=1)))
+
+    async def _async_tariff_tick(self, now):
+        self.async_write_ha_state()
+
+    def _icp_value(self, key):
+        if self._service_id is not None and not self._is_primary:
+            key = f"icp_{_sanitize_for_key(self._service_id)}_{key}"
+        return (self.coordinator.data or {}).get(key)
+
+    def _tariff_schedule(self):
+        try:
+            return Schedule.from_options(self._config_entry.options.get(CONF_TARIFF_SCHEDULES, {}).get(self._service_id))
+        except (KeyError, ValueError, TypeError):
+            return None
+
     @property
     def device_info(self):
         """Return device information.
@@ -265,6 +290,16 @@ class MercurySensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the sensor."""
+        if self._sensor_type in ("plan_anytime_rate", "tariff_period"):
+            schedule = self._tariff_schedule()
+            period = schedule.period(dt_util.utcnow()) if schedule else None
+            if self._sensor_type == "tariff_period":
+                return period
+            if self._icp_value("plan_day_rate") is not None or self._icp_value("plan_night_rate") is not None:
+                return self._icp_value(f"plan_{period}_rate") if period else None
+            return self._icp_value("plan_anytime_rate")
+        if self._sensor_type in TARIFF_SENSOR_TYPES:
+            return self._icp_value(self._sensor_type)
         if not self.coordinator.data:
             _LOGGER.debug("🔍 Sensor %s: No coordinator data available, using default", self._sensor_type)
             # Return appropriate default based on sensor unit to maintain consistency
@@ -384,6 +419,18 @@ class MercurySensor(CoordinatorEntity, SensorEntity):
         """Return additional state attributes for graphing."""
         if not self.coordinator.data:
             return {}
+
+        if self._sensor_type in ("tariff_day_usage", "tariff_night_usage"):
+            return self._icp_value("tariff_usage_details") or {}
+        if self._sensor_type == "meter_register_count":
+            return {"registers": self._icp_value("meter_registers") or [],
+                    "source": "Mercury billed meter readings; not live counters"}
+        if self._sensor_type in ("plan_current_plan_name", "plan_day_rate", "plan_night_rate", "plan_anytime_rate", "tariff_period", "plan_is_pending_plan_change"):
+            return {key: self._icp_value(f"plan_{key}") for key in (
+                "unit_rates", "generation_rates", "other_charges", "plan_code",
+                "plan_name", "is_time_of_use", "plan_change_date", "is_pending_plan_change")} | {
+                "schedule": self._config_entry.options.get(CONF_TARIFF_SCHEDULES, {}).get(self._service_id),
+                "schedule_source": "user_configured"}
 
         attributes = {}
 

@@ -56,6 +56,10 @@ def test_state_class_present_for_numeric_sensors() -> None:
     """
     units_requiring_state_class = ("kWh", "$", "NZD/kWh", "NZD/day")
     for sensor_type, config in SENSOR_TYPES.items():
+        if sensor_type in ("tariff_day_usage", "tariff_night_usage"):
+            # Delayed complete-day snapshots use external backdated statistics.
+            assert config.get("state_class") is None
+            continue
         if config.get("unit") in units_requiring_state_class:
             assert config.get("state_class") is not None, (
                 f"{sensor_type} has unit {config['unit']!r} but no state_class — "

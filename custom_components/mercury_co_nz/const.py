@@ -371,6 +371,20 @@ ICP_SCOPED_SENSOR_TYPES: Final[frozenset[str]] = frozenset({
     "plan_is_pending_plan_change",
 })
 
+# Tariff and source diagnostics: missing data stays unknown, never zero.
+TARIFF_SENSOR_TYPES = {
+    "plan_day_rate": {"name": "Day Rate", "unit": "NZD/kWh", "state_class": "measurement", "icon": "mdi:white-balance-sunny"},
+    "plan_night_rate": {"name": "Night Rate", "unit": "NZD/kWh", "state_class": "measurement", "icon": "mdi:weather-night"},
+    "tariff_period": {"name": "Active Tariff", "unit": None, "icon": "mdi:clock-outline"},
+    "tariff_day_usage": {"name": "Latest Complete Day Daytime Usage", "unit": "kWh", "icon": "mdi:white-balance-sunny", "device_class": "energy"},
+    "tariff_night_usage": {"name": "Latest Complete Day Nighttime Usage", "unit": "kWh", "icon": "mdi:weather-night", "device_class": "energy"},
+    "usage_latest_reading": {"name": "Latest Usage Reading", "unit": None, "icon": "mdi:calendar-clock", "device_class": "timestamp"},
+    "usage_read_type": {"name": "Latest Usage Read Type", "unit": None, "icon": "mdi:check-decagram"},
+    "meter_register_count": {"name": "Meter Registers", "unit": None, "icon": "mdi:counter"},
+}
+SENSOR_TYPES.update(TARIFF_SENSOR_TYPES)
+ICP_SCOPED_SENSOR_TYPES = ICP_SCOPED_SENSOR_TYPES | TARIFF_SENSOR_TYPES.keys()
+
 # Gas-only sensor types (v2.1.1, #27). Skipped entirely for accounts with no gas
 # service — electricity-only customers were getting two permanently-0 entities.
 # Declarative set rather than a `gas_` string match: bill_gas_amount doesn't

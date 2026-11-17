@@ -168,8 +168,8 @@ def test_secondary_name_says_icp_token() -> None:
 
 
 def test_icp_scoped_sensor_set_count() -> None:
-    """ICP_SCOPED_SENSOR_TYPES must contain exactly the 14 per-meter keys."""
-    assert len(ICP_SCOPED_SENSOR_TYPES) == 14
+    """ICP_SCOPED_SENSOR_TYPES must contain the original 14 plus 8 tariff/diagnostic keys."""
+    assert len(ICP_SCOPED_SENSOR_TYPES) == 22
 
 
 def test_account_scoped_sensors_excluded_from_icp_set() -> None:

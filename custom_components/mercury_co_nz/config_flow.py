@@ -14,6 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN, CONF_EMAIL, CONF_ICP
 from .mercury_api import MercuryAPI
+from .tariff import CONF_TARIFF_SCHEDULES, Schedule
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -224,9 +225,11 @@ class MercuryOptionsFlow(config_entries.OptionsFlow):
         """Show/handle the ICP selector."""
         if user_input is not None:
             # ALL_ICPS ⇒ clear the pin and go back to the default multi-ICP view.
-            return self.async_create_entry(
-                title="", data={CONF_ICP: user_input.get(CONF_ICP) or None}
-            )
+            self._options = {**self.config_entry.options, CONF_ICP: user_input.get(CONF_ICP) or None}
+            self._tariff_meter = user_input.get("tariff_meter")
+            if self._tariff_meter:
+                return await self.async_step_tariff()
+            return self.async_create_entry(title="", data=self._options)
 
         # Choices come from the live coordinator's first-cycle discovery.
         coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
@@ -246,6 +249,36 @@ class MercuryOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
-                {vol.Optional(CONF_ICP, default=current): vol.In(choices)}
+                {vol.Optional(CONF_ICP, default=current): vol.In(choices),
+                 vol.Optional("tariff_meter", default=""): vol.In({"": "Keep tariff schedules unchanged", **{s.service_id: _icp_label(s) for s in services}})}
             ),
         )
+
+    async def async_step_tariff(self, user_input=None):
+        """Configure one meter; never assume another meter has the same tariff."""
+        from homeassistant.util import dt as dt_util
+        previous = self._options.get(CONF_TARIFF_SCHEDULES, {}).get(self._tariff_meter, {})
+        values = dict(previous)
+        errors = {}
+        if user_input is not None:
+            values.update(user_input)
+            try:
+                Schedule.from_options(values)
+            except (KeyError, ValueError, TypeError):
+                errors["base"] = "invalid_tariff_schedule"
+            else:
+                schedules = dict(self._options.get(CONF_TARIFF_SCHEDULES, {}))
+                schedules[self._tariff_meter] = values
+                return self.async_create_entry(title="", data={**self._options, CONF_TARIFF_SCHEDULES: schedules})
+        hours = {f"{h:02d}:00": f"{h:02d}:00" for h in range(24)}
+        return self.async_show_form(step_id="tariff", errors=errors,
+            description_placeholders={"meter": self._tariff_meter},
+            data_schema=vol.Schema({
+                vol.Required("enabled", default=values.get("enabled", False)): bool,
+                vol.Required("night_start", default=values.get("night_start", "21:00")): vol.In(hours),
+                vol.Required("night_end", default=values.get("night_end", "07:00")): vol.In(hours),
+                vol.Required("start_date", default=values.get("start_date", str(dt_util.now().date()))): str,
+                vol.Required("time_zone", default=values.get("time_zone", "Pacific/Auckland")): vol.In({
+                    "Pacific/Auckland": "New Zealand local time (follows daylight saving)",
+                    "Etc/GMT-12": "Fixed NZ standard time (UTC+12 all year)"}),
+            }))
