@@ -1,6 +1,6 @@
-# Day/night support in this fork
+# Day/night tariffs and usage
 
-This fork retains Mercury's separate **Day** and **Night** prices instead of
+The integration retains Mercury's separate **Day** and **Night** prices instead of
 discarding them when a plan has no Anytime price. It adds:
 
 - Day Rate and Night Rate (NZD/kWh).
@@ -66,11 +66,9 @@ changing a schedule, select the new pair shown in the usage sensors' attributes.
 
 ## Installation and local modifications
 
-Install the `custom_components/mercury_co_nz` directory from this fork and reload
-the integration/restart HA. Preserve any locally added archive extensions before
-replacing files. The integration domain and existing entity/statistic IDs remain
-unchanged. HACS updates from the original repository can overwrite this fork;
-use this fork as the update source if you want to retain these features.
+After installing the updated integration, reload it or restart HA. Preserve any
+locally added archive extensions before replacing files. The integration domain
+and existing entity/statistic IDs remain unchanged.
 
 No account credentials, meter IDs, account history, or local archive are included
 in this repository. Tests use synthetic records.

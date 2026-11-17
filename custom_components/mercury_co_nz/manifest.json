@@ -10,7 +10,7 @@
     "http",
     "recorder"
   ],
-  "documentation": "https://github.com/benjamincburns/home-assistant-mercury-co-nz",
+  "documentation": "https://github.com/bkintanar/home-assistant-mercury-co-nz",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "requirements": [
@@ -19,5 +19,5 @@
   ],
   "frontend": true,
   "min_ha_version": "2025.11.0",
-  "version": "2.2.0"
+  "version": "2.1.1"
 }

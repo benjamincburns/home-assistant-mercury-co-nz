@@ -1,7 +1,7 @@
 # Mercury Energy NZ - Home Assistant Integration
 
-This fork adds configurable day/night usage, separate tariff prices, and meter
-and plan diagnostics. See [day/night setup and limitations](DAY_NIGHT.md).
+Supports configurable day/night usage, separate tariff prices, and meter and
+plan diagnostics. See [day/night setup and limitations](DAY_NIGHT.md).
 
 A custom Home Assistant integration that provides beautiful, interactive energy usage charts for Mercury Energy New Zealand customers.
 
